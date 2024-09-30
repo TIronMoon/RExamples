@@ -1,0 +1,477 @@
+#1.1 
+NA_position <- function(x, y){
+all(is.na(x) == is.na(y))
+}
+
+#1.2
+smart_test <-function(x){   
+    table(x)
+    x<-table(x)  
+    unlist(x)
+  nchisq<-chisq.test(x)
+  a<-c(fisher.test(x)$p.value)  
+  b<-c(nchisq$statistic, nchisq$parameter, nchisq$p.value)
+  if(all(x>5)) {
+     b
+      }else{
+     a
+    }
+}
+
+#1.3
+most_significant <-  function(x){
+  vs <- colnames(x)
+  x <- as.data.frame(lapply(x, as.factor))
+  x <- as.data.frame(lapply(x, as.numeric))
+  chisqs <- c()
+  for (c in colnames(x)) {
+    chisqs <- append(chisqs, chisq.test(x[c])$p.value)
+  }
+  result <- table(vs, chisqs)
+  return(vs[chisqs==min(chisqs)])
+}
+
+#1.4
+a1 <- apply(iris[, 1:4], 2, function(x) x>=mean(x))
+iris$important_cases <- as.factor(ifelse(rowSums(a1) >= 3, "Yes", "No"))
+
+#1.5
+get_important_cases <- function(x){
+    size_ <- length(rownames(x))
+  len_ <- length(colnames(x))
+    means <- c()
+    for(i in 1:len_) {
+    means[i] <- mean(x[, i])
+  }
+    cases <- c()
+    for(i in 1:size_) {
+    temp_r <- sum(as.numeric(unlist(x[i, ]) > means))
+    cases[i] <- ifelse(temp_r > (len_/2), "Yes", "No")
+  }
+    x$important_cases <- factor(cases, levels = c("No", "Yes"))
+    return(x)
+}
+
+#1.6
+stat_mode <- function(x){
+u <- unique(x)
+ tab <- tabulate(match(x, u))
+ u[tab == max(tab)]
+}
+
+#1.7
+max_resid <- function(x){
+  d <- chisq.test(table(x))$stdres 
+  row_names <- rownames(table(x))[which(d == max(d), arr.ind = TRUE)][1]  
+  col_names <- colnames(table(x))[which(d == max(d), arr.ind = TRUE)][2] 
+  return(c(row_names, col_names))
+}
+
+#1.8
+obj <- ggplot(diamonds, aes(color, fill = cut))+
+  geom_histogram(stat = "count", position = "dodge")
+  
+  
+#2.1
+get_coefficients <- function(dataset){
+ a <- glm(y~x, dataset, family = "binomial")
+    return(sapply(coef(a), exp))
+}
+
+#2.2
+centered <- function(test_data, var_names){
+    test_data[var_names] <- sapply(test_data[var_names], function (x) {(x)-mean(x)})  
+    return(as.data.frame(test_data))
+}
+
+#2.3
+get_features <- function(dataset){
+a <- glm(is_prohibited ~ ., dataset, family = "binomial")
+  result <- anova(a, test = "Chisq") 
+   b <- rownames(subset(result,`Pr(>Chi)`< 0.05))
+     if (length(b) == 0) {
+    "Prediction makes no sense"
+  } else {
+    b[1:length(b)]
+  }
+}
+
+#2.4
+most_suspicious <- function(test_data, data_for_predict){    
+	fit <- glm(is_prohibited ~., test_data, family = 'binomial')    
+	probs <- predict(fit, newdata = data_for_predict, type = 'response')    
+	index <- which(probs == max(probs))    
+	passanger_name <- data_for_predict$passangers[index]    
+	return(passanger_name)    
+}
+
+#2.5
+normality_test <- function(dataset){    
+	numeric_var <- sapply(dataset, is.numeric)  
+	sapply(dataset[numeric_var], function(x) shapiro.test(x)$p.value)    
+}
+
+#2.6
+smart_anova <- function(test_data){
+nm <- names(table(test_data$y))
+  oden <- test_data$x[test_data$y == nm[1]]
+   dva <- test_data$x[test_data$y == nm[2]]
+   tre <- test_data$x[test_data$y == nm[3]]  
+   tes <- all(c(shapiro.test(oden)$p > 0.05,
+                shapiro.test(dva)$p > 0.05,
+                shapiro.test(tre)$p > 0.05,
+                bartlett.test(x ~ y, test_data)$p.value > 0.05) == T)
+   if (tes == T){
+     fit <- aov(x ~ y, test_data)
+     p <- summary(fit)[[1]]$'Pr(>F)'[1]
+     names(p) <- "ANOVA"
+     return(p)
+   } else{
+     p <- kruskal.test(x ~ y, test_data)$p.value
+     names(p) <- "KW"
+     return(p)
+   }
+ }
+
+#2.7
+library(dplyr)
+ normality_by <- function(test){
+   nm <- names(test)
+   tabl <- test %>%
+     group_by(y, z) %>%
+     summarise(shapiro.test(x)$p)
+   names(tabl) <- c(nm[2],nm[3],"p_value")
+   return(tabl)
+ }
+ 
+#2.8
+obj <- ggplot(iris, aes(x=Sepal.Length,fill=Species))+    
+	geom_density(alpha = 0.2)
+	
+
+
+#3.1
+	smart_hclust <- function(test_data, n_cluster){    
+	d <- dist(test_data)    
+	fit <- hclust(d)    
+	test_data$cluster <- factor(cutree(fit, k = n_cluster))    
+	return(test_data)    
+}
+
+#3.2
+get_difference <- function(test_data, n_cluster){    
+	dist_matrix <- dist(test_data)    
+	fit <- hclust(dist_matrix)    
+	test_data$cluster <- as.factor(cutree(fit, n_cluster))    
+	p_val <- sapply(test_data[,-ncol(test_data)],    
+		function(x) {summary(aov(x~cluster, test_data))[[1]][1,'Pr(>F)']})    
+	return(names(p_val)[p_val < 0.05])    
+}
+
+#3.3
+get_pc <- function(test){    
+	fit <- prcomp(test)    
+	test<- cbind(test, fit$x[,1:2])    
+	return(test)    
+}
+
+#3.4
+library(dplyr)
+get_pca2 <- function(data){
+   fit <- prcomp(data)
+   cumulative <- summary(fit)$importance[3,]
+   nums <- min(which((cumulative >= 0.9) == TRUE))
+   pcs <- as.data.frame(fit$x) %>% select(1:nums)
+   return(cbind(data, pcs))
+}
+
+#3.5
+is_multicol <- function(d){    
+	d <- abs(cor(d))     
+	d[lower.tri(d)] <- 0    
+	diag(d) <- 0    
+	index <- which((1-d) < 1e-10, arr.ind = T)    
+	if (length(index) == 0){      
+		return('There is no collinearity in the data')    
+	} else {      
+		return(rownames(d)[index])      
+	}      
+}
+
+#3.6
+dist_matrix <- dist(swiss)    
+fit <- hclust(dist_matrix)     
+swiss$cluster <- as.factor(cutree(fit, 2))    
+my_plot <- ggplot(swiss, aes(Education, Catholic, col = cluster)) +      
+	geom_point() +      
+	geom_smooth(method = 'lm')
+	
+
+#Data analysis with R 1.3 apply function family
+#1.3.1
+get_negative_values <- function(test_data){    
+negative_col <- apply(test_data, 2, function(x) any(x[!is.na(x)] < 0))    
+return(apply(test_data[negative_col], 2, function(x) x[!is.na(x) & x <0]))}
+
+#1.3.2	
+
+na_rm  <- function(x){
+  a <- function(x) {
+      x[is.na(x)] <- mean(x, na.rm = T) 
+      return(x)}
+ v <- as.data.frame(apply(x, 2 , function(x) a(x)))
+}
+
+#1.4.1
+positive_sum <-  function(test_data){
+lapply(test_data, function(x) sum(x[x>0], na.rm = T))
+}
+
+#1.4.2
+my_names <- function (dataset, names){    
+dataset[as.numeric(lapply(names, function(x) which(grepl(x, dataset$name)))),]}
+
+#1.4.3
+find_outliers <- function(data) {
+  fac.vars <- data[sapply(data, is.factor)]
+  num.vars <- sapply(data, is.numeric)
+  outliers <- function(x) abs(x - mean(x)) > sd(x) * 2
+  outliers.df <- function(df) apply(sapply(df[num.vars], outliers), 1, any) + 0
+  data$is_outlier <- unsplit(by(data, fac.vars, outliers.df), fac.vars)
+  return(data)
+}
+
+#1.4.4
+smart_lm <- function(x){    
+check_norm <- sapply(x[-1], function(var) shapiro.test(var)$p.value > 0.05)    
+if (any(check_norm)){    
+x = x[, c(1, (which(check_norm) + 1))]    
+coef <- lm(x[[1]] ~ ., x[-1])$coef    
+return(coef)    
+} else{    
+return('There are no normal variables in the data')}}
+
+#1.4.5
+one_sample_t <- function(test_data, general_mean){
+  num_col <- test_data[sapply(test_data, is.numeric)]
+  lapply(num_col, function(i) c(t.test(i, mu = general_mean)$statistic, 
+                                t.test(i, mu = general_mean)$parameter, 
+                                t.test(i, mu = general_mean)$p.value))
+}
+
+#1.4.6
+get_p_value <- function(test_list){
+  lapply(test_list, function(i) i$p.value)
+}
+
+#1.5.1 dplyr
+d <- slice(diamonds, seq(1, nrow(diamonds), 2))
+
+#1.5.2 dplyr
+my_df <- mtcars %>%
+select(mpg, am, vs, hp) %>% 
+filter(mpg > 14, hp > 100) %>% 
+arrange(desc(mpg)) %>% 
+slice(c(1:10)) %>% 
+rename("Miles per gallon" = mpg, "Gross horsepower" = hp) 
+
+#1.6.2
+log_transform <- function(test_data){
+  test_data %>% 
+    mutate_if(is.numeric, funs(log((. - min(.))/(max(.) - min(.)) + 1)))
+}
+
+#1.6.3
+descriptive_stats <- function(test_data){      
+gr_data <- group_by(test_data, gender, country)      
+result <- summarise(gr_data,                       
+n = n(),                      
+mean = mean(salary, na.rm = T),                       
+sd = sd(salary, na.rm = T),                      
+median = median(salary, na.rm = T),                       
+first_quartile = quantile(salary, na.rm = T)[2],                       
+third_quartile = quantile(salary, na.rm = T)[4],                       
+na_values = sum(is.na(salary)))}
+
+#1.6.4 
+to_factors <- function(test_data, factors){
+  test_data %>% 
+    mutate_at(factors, funs(factor(ifelse(. > mean(.), 1, 0))))
+}
+
+#1.6.5
+high_price <- diamonds %>% 
+  select(color, price) %>% 
+  group_by(color) %>% 
+  arrange(desc(price)) %>% 
+  slice(1:10)
+
+#1.7.1
+filter.expensive.available <- function(products, brands) {
+  products[(price/100 >= 5000 & available == T &
+                     brand %in% brands)]
+}
+
+#1.7.2
+ordered.short.purchase.data <- function(purchases) {
+  purchases[order(price, decreasing = T)][quantity > 0, .(ordernumber, 
+                                                          product_id)]
+}
+
+#1.7.3
+purchases.median.order.price <- function(purchases) {
+  result <- purchases[quantity > 0, .(price_total = sum(quantity*price)), 
+            by = ordernumber][, .(purchases = median(price_total))]
+  return(as.numeric(result))
+}
+
+#1.8.1
+get.category.ratings <- function(purchases, product.category) {
+  setkey(purchases, product_id)
+  setkey(product.category, product_id)
+  data <- merge(product.category, purchases, by = "product_id")
+  data[, .(totalcents = sum(totalcents), quantity = sum(quantity)), 
+     by = "category_id"]
+}
+
+#1.8.2
+mark.position.portion <- function(purchases) {
+      purchases[quantity > 0][, price.portion := 
+          format(round(((ordernumber*quantity*price)/
+                        (sum(ordernumber*quantity*price))*100), digits = 2), 
+                 nsmall = 2), by = ordernumber]
+}
+
+#1.9.1
+fix_data <- function(d){
+    try.num <- function(x){
+        xsd <- gsub(' ', '', x)
+        if(any(is.na(xn <- suppressWarnings(as.numeric(xsd)))))
+            return(x)
+        return(xn)
+    }
+    as.data.frame(lapply(d, try.num), stringsAsFactors = F)
+}
+
+#2.1.1
+
+depth_hist <- qplot(diamonds$depth)
+
+#2.1.2
+price_carat_clarity_points <- qplot(carat,
+                                   price,
+                                   data = diamonds,
+                                   color = "clarity")
+								  
+#2.1.3
+x_density <- qplot(x, data = diamonds, geom = "density")
+
+#2.1.4
+x_cut_density <- qplot(x,
+                      data = diamonds,
+                      color = cut,
+                      geom = "density")
+
+#2.1.5
+price_violin <- qplot(color,
+                      price,
+                      data = diamonds,
+                      geom = "violin")
+
+#2.2.1
+my_plot <- ggplot(mtcars, aes(am, mpg))+
+geom_violin()+
+geom_boxplot(width = 0.2)
+
+#2.2.2
+my_plot <- ggplot(sales, aes(income, sale))+
+  geom_point(aes(color = shop))+
+  geom_smooth()
+  
+#2.2.3
+my_plot <- ggplot(sales, aes(shop, income, color = season))+
+stat_summary(fun.data = mean_cl_boot, position = position_dodge(0.2))
+
+#2.2.4
+my_plot <-  ggplot(sales, aes(date, sale, color = shop))+
+stat_summary(fun.data = mean_cl_boot, geom = "errorbar", 
+                 width = 0.2, position = position_dodge(0.2)) + # добавим стандартную ошибку
+stat_summary(fun.data = mean_cl_boot, geom = "point", 
+             position = position_dodge(0.2)) + # добавим точки
+stat_summary(fun.data = mean_cl_boot, geom = "line", 
+             position = position_dodge(0.2)) # соединим линиями
+             
+
+#2.3.1
+
+#jackknife
+library(ggplot2)
+
+bad_var_estimator <- function(x) {
+  n <- length(x)
+  return(var(x)*(n-1)/n)
+}
+
+JN_bias_correction <- function(x, estimator){
+  n <- length(x)
+  theta_stars <- vector("numeric",n)
+  ind <- c(1:n)
+ 
+  for(i in ind) {
+    sample <- x[ind != i]
+    theta_stars[i] <- estimator(sample)
+  }
+
+  theta_hat <- estimator(x)
+  theta_dot <- mean(theta_stars)
+ 
+  bias_jack <- (theta_dot - theta_hat)*(n-1)
+  theta_hat_jack <- theta_hat - bias_jack
+  return(theta_hat_jack)
+}
+start <- 3
+
+sample_sizes <- c(start:50)
+test <- 100
+
+results_good <- sample_sizes
+results_bad <- sample_sizes
+results_corrected <- sample_sizes
+
+for (n in sample_sizes){
+  samples <- matrix (rnorm(n*test), n)
+ 
+  good_estimations <- apply (samples, 2, var)
+  bad_estimations <- apply (samples, 2, var)
+  corrected_estimations <- apply(samples, JN_bias_correction, estimator = bad_var_estimator)
+ 
+  results_good[n-start+1] <- mean(good_estimations)
+  results_bad[n-start+1] <- mean(bad_estimations)
+  results_corrected[n-start+1] <- mean(corrected_estimations)
+}
+
+df <- data.frame(x = rep(sample_sizes,3),
+                y = c(results_good,results_bad, results_corrected),
+                gr = factor(rep(1:3, each = length(sample_sizes))),
+                            labels = c("results_good","results_bad","results_corrected"))
+
+ggplot(df, aes(x, y, col = gr))+
+  geom_jitter()
+
+
+#3.4.1
+median_cl_boot <- function(x) {
+   n <- length(x)
+   bs.medians <- sapply(1:1000, function(i) median(sample(x, n, replace = T)))
+   quantile(median(x) - bs.medians, probs = c(0.975, 0.025)) + median(x)
+ }
+ 
+ #3.4.2
+ slope_cl_boot <- function(x, bootNums = 1000){
+  xRows <- nrow(x)
+   cor <- lm(y ~ x, data = x)$coefficients[2]
+   cors <- replicate(bootNums, lm(y ~ x, data = x[sample(xRows, replace=T),])$coefficients[2] - cor)
+   cor + quantile(cors, c(.025,.975))
+ }
+ 
+ 
